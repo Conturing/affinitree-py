@@ -1,0 +1,53 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+bindings = "pyo3"
+# compatibility = "manylinux2014"
+python-source = "python"
+strip = true
+sdist-generator = "cargo"
+include = [{ path = "python/affinitree/{plot.py,pytorch.py}", format = "sdist" }]
+
+[project]
+name = "affinitree"
+version = "0.21.1"
+description = "Distillation of piece-wise linear neural networks into decision trees"
+readme = "README.md"
+requires-python = ">=3.7"
+license = { file="license.html" }
+keywords = ['affinitree', 'afftree', 'distillation', 'XAI']
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python",
+    "Programming Language :: Rust",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+dependencies = [
+  "numpy>=1.16.0",
+  "scipy>=0.19.0",
+  "matplotlib>=3.3.0",
+  "seaborn>=0.4.0",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest >= 6.2.5",
+]
+
+[project.urls]
+repository = "https://github.com/Conturing/affinitree-py"
+
+[tool.mypy]
+files = ["affinitree"]
+strict = true

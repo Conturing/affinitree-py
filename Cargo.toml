@@ -1,0 +1,25 @@
+[package]
+name = "affinitree-py"
+version = "0.21.1"
+edition = "2021"
+license = "Apache 2.0"
+
+[lib]
+path = "src/lib.rs"
+name = "affinitree"
+crate-type = ["cdylib"]
+
+[dependencies]
+affinitree_rust = { package = "affinitree", version = "0.21.1" }
+numpy = "0.19.0"
+pyo3 = { version = "0.19.2", features = ["extension-module"] }
+pyo3-arraylike = "0.1.0"
+
+[profile.bench]
+lto = true
+codegen-units = 1
+debug = true
+
+[profile.release]
+lto = true
+codegen-units = 1
