@@ -13,11 +13,11 @@
 #   limitations under the License.
 
 from .affinitree import *
-from .plot import LedgerDiscrete, LedgerContinuous, plot_preimage_partition, plot_image
-from .pytorch import from_pytorch, export_npz
+from .plot import LedgerDiscrete, LedgerContinuous, compute_polytope_vertices, plot_preimage_partition, plot_image
+from .pytorch import extract_pytorch_architecture, export_npz
 
 __all__ = [
-    'AffTree', 'AffNode', 'AffFunc', 'Polytope', 'dot_str', 'LedgerDiscrete', 'LedgerContinuous', 'plot_preimage_partition', 'plot_image', 'from_pytorch', 'export_npz', 'schema', 'builder'
+    'AffTree', 'AffNode', 'AffFunc', 'Polytope', 'LayerBuilder', 'LedgerDiscrete', 'LedgerContinuous', 'compute_polytope_vertices', 'plot_preimage_partition', 'plot_image', 'extract_pytorch_architecture', 'export_npz', 'schema', 'builder'
 ]
 
-__version__ = '0.21.1'
+__version__ = '0.22.0'

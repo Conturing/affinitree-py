@@ -12,7 +12,7 @@ include = [{ path = "python/affinitree/{plot.py,pytorch.py}", format = "sdist" }
 
 [project]
 name = "affinitree"
-version = "0.21.1"
+version = "0.22.0"
 description = "Distillation of piece-wise linear neural networks into decision trees"
 readme = "README.md"
 requires-python = ">=3.7"

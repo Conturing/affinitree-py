@@ -30,7 +30,7 @@ use affinitree_rust::linalg::affine::{AffFunc, Polytope};
 use affinitree_rust::tree::graph::{Tree, TreeNode, TreeIndex, Label};
 use affinitree_rust::pwl::afftree::AffTree;
 use affinitree_rust::pwl::node::{AffContent, AffNode};
-use affinitree_rust::pwl::dot;
+use affinitree_rust::pwl::dot::{self, Dot};
 use affinitree_rust::distill::builder::{afftree_from_layers, read_layers, self, Layer, afftree_from_layers_verbose, afftree_from_layers_csv};
 use affinitree_rust::distill::schema;
 
@@ -77,8 +77,8 @@ impl AffTreeWrapper {
     }
 
     #[classmethod]
-    fn from_poly<'py>(cls: &PyType, precondition: PolytopeWrapper, func: AffineFunctionWrapper) -> PyResult<AffTreeWrapper> {
-        Ok(AffTreeWrapper { aff_tree: AffTree::from_poly(precondition.polytope, func.aff_func) })
+    fn from_poly<'py>(cls: &PyType, precondition: PolytopeWrapper, func_true: AffineFunctionWrapper, func_false: Option<AffineFunctionWrapper>) -> PyResult<AffTreeWrapper> {
+        Ok(AffTreeWrapper { aff_tree: AffTree::from_poly(precondition.polytope, func_true.aff_func, func_false.map(|w| w.aff_func).as_ref()) })
     }
 
     fn apply_func(&mut self, aff_func: &AffineFunctionWrapper) {
@@ -143,7 +143,7 @@ impl AffTreeWrapper {
     }
 
     fn nodes(&self) -> PyResult<Vec<AffineNodeWrapper>> {
-        Ok(self.aff_tree.tree.node_iter().map(|(idx, node)| AffineNodeWrapper {node: node.clone(), idx: idx}).collect())
+        Ok(self.aff_tree.tree.node_iter().map(|(idx, node)| AffineNodeWrapper {node: node.clone(), idx}).collect())
     }
 
     fn terminals(&self) -> PyResult<Vec<AffineNodeWrapper>> {
@@ -155,7 +155,7 @@ impl AffTreeWrapper {
 
     fn dfs(&self) -> PyResult<Vec<(usize, AffineNodeWrapper, usize)>> {
         Ok(self.aff_tree.tree.dfs_iter()
-            .map(|(depth, idx, n_remaining)| (depth, AffineNodeWrapper::new(idx, self.aff_tree.tree.tree_node(idx).unwrap().clone()), n_remaining)).collect())
+            .map(|data| (data.depth, AffineNodeWrapper::new(data.index, self.aff_tree.tree.tree_node(data.index).unwrap().clone()), data.n_remaining)).collect())
     }
 
     fn edges(&self) -> PyResult<Vec<(AffineNodeWrapper, Label, AffineNodeWrapper)>> {
@@ -176,15 +176,37 @@ impl AffTreeWrapper {
             .collect())
     }
 
-    fn remove_axes<'py>(&mut self, mask: PyArrayLike1<'py, bool>) {
+    fn reduce(&mut self) {
+        self.aff_tree.reduce()
+    }
+
+    fn remove_axes<'py>(&mut self, _py: Python<'py>, mask: PyArrayLike1<'py, bool>) {
         self.aff_tree.remove_axes(&mask.into_owned_array())
     }
 
     fn to_dot(&self) -> String {
-        // conservative estimation
-        let mut str = String::with_capacity(self.aff_tree.tree.len() * 20);
-        dot::dot_str(&mut str, &self.aff_tree);
-        str
+        let dot = Dot::from(&self.aff_tree);
+        dot.to_string()
+    }
+
+    pub fn __neg__(&self) -> AffTreeWrapper {
+        AffTreeWrapper { aff_tree: -self.aff_tree.clone() }
+    }
+
+    pub fn __add__(&self, other: &AffTreeWrapper) -> AffTreeWrapper {
+        AffTreeWrapper { aff_tree: &self.aff_tree - &other.aff_tree }
+    }
+
+    pub fn __sub__(&self, other: &AffTreeWrapper) -> AffTreeWrapper {
+        AffTreeWrapper { aff_tree: &self.aff_tree - &other.aff_tree }
+    }
+
+    pub fn __mul__(&self, other: &AffTreeWrapper) -> AffTreeWrapper {
+        AffTreeWrapper { aff_tree: &self.aff_tree * &other.aff_tree }
+    }
+
+    pub fn __div__(&self, other: &AffTreeWrapper) -> AffTreeWrapper {
+        AffTreeWrapper { aff_tree: &self.aff_tree / &other.aff_tree }
     }
 
     fn __getitem__(&self, key: TreeIndex) -> PyResult<AffineNodeWrapper> {
@@ -213,7 +235,7 @@ struct AffineNodeWrapper {
 
 impl AffineNodeWrapper {
     fn new(idx: TreeIndex, node: AffNode<2>) -> AffineNodeWrapper {
-        AffineNodeWrapper { node: node, idx: idx }
+        AffineNodeWrapper { node, idx }
     }
 }
 
@@ -300,12 +322,12 @@ impl PolytopeWrapper {
 
     #[getter]
     fn mat<'py>(&self, _py: Python<'py>) -> PyResult<&'py PyArray2<f64>> {
-        Ok(PyArray::from_array(_py, &self.polytope.get_matrix()))
+        Ok(PyArray::from_array(_py, &self.polytope.matrix_view()))
     }
 
     #[getter]
     fn bias<'py>(&self, _py: Python<'py>) -> PyResult<&'py PyArray1<f64>> {
-        Ok(PyArray::from_array(_py, &self.polytope.get_bias()))
+        Ok(PyArray::from_array(_py, &self.polytope.bias_view()))
     }
 
     fn row(&self, row: usize) -> PyResult<PolytopeWrapper> {
@@ -324,11 +346,11 @@ impl PolytopeWrapper {
         Ok(PyArray::from_array(_py, &self.polytope.distance(&point.into_owned_array())))
     }
 
-    fn contains<'py>(&self, point: PyArrayLike1<'py, f64>) -> bool {
+    fn contains<'py>(&self, _py: Python<'py>, point: PyArrayLike1<'py, f64>) -> bool {
         self.polytope.contains(&point.into_owned_array())
     }
 
-    fn translate<'py>(&self, point: PyArrayLike1<'py, f64>) -> PolytopeWrapper {
+    fn translate<'py>(&self, _py: Python<'py>, point: PyArrayLike1<'py, f64>) -> PolytopeWrapper {
         PolytopeWrapper::new(self.polytope.translate(&point.into_owned_array()))
     }
 
@@ -351,8 +373,8 @@ impl PolytopeWrapper {
 
         match lp_state {
             PolytopeStatus::Optimal(solution) => Ok(PyArray::from_array(_py, &solution)),
-            PolytopeStatus::Infeasible => Err(PyValueError::new_err("no solution exists")),
-            PolytopeStatus::Unbounded => Err(PyValueError::new_err("unbounded")),
+            PolytopeStatus::Infeasible => Err(PyValueError::new_err("polytope is infeasible")),
+            PolytopeStatus::Unbounded => Err(PyValueError::new_err("polytope is unbounded")),
             PolytopeStatus::Error(msg) => Err(PyValueError::new_err(msg)),
         }
     }
@@ -372,29 +394,29 @@ impl PolytopeWrapper {
     // for backwards compatibility
     #[allow(non_snake_case)]
     fn to_Axbleqz<'py>(&self, _py: Python<'py>) -> PyResult<(&'py PyArray2<f64>, &'py PyArray1<f64>)> {
-        Ok((PyArray::from_array(_py, &self.polytope.get_matrix()), PyArray::from_array(_py, &-&self.polytope.get_bias())))
+        Ok((PyArray::from_array(_py, &self.polytope.matrix_view()), PyArray::from_array(_py, &-&self.polytope.bias_view())))
     }
 
     #[allow(non_snake_case)]
     fn to_Axleqb<'py>(&self, _py: Python<'py>) -> PyResult<(&'py PyArray2<f64>, &'py PyArray1<f64>)> {
-        Ok((PyArray::from_array(_py, &self.polytope.get_matrix()), PyArray::from_array(_py, &self.polytope.get_bias())))
+        Ok((PyArray::from_array(_py, &self.polytope.matrix_view()), PyArray::from_array(_py, &self.polytope.bias_view())))
     }
 
     #[allow(non_snake_case)]
     fn to_Axbgeqz<'py>(&self, _py: Python<'py>) -> PyResult<(&'py PyArray2<f64>, &'py PyArray1<f64>)> {
-        Ok((PyArray::from_array(_py, &-&self.polytope.get_matrix()), PyArray::from_array(_py, &self.polytope.get_bias())))
+        Ok((PyArray::from_array(_py, &-&self.polytope.matrix_view()), PyArray::from_array(_py, &self.polytope.bias_view())))
     }
 
     #[allow(non_snake_case)]
     fn to_Axgeqb<'py>(&self, _py: Python<'py>) -> PyResult<(&'py PyArray2<f64>, &'py PyArray1<f64>)> {
-        Ok((PyArray::from_array(_py, &-&self.polytope.get_matrix()), PyArray::from_array(_py, &-&self.polytope.get_bias())))
+        Ok((PyArray::from_array(_py, &-&self.polytope.matrix_view()), PyArray::from_array(_py, &-&self.polytope.bias_view())))
     }
 }
 
 #[derive(Clone)]
 #[pyclass]
 #[pyo3(name = "AffFunc")]
-struct AffineFunctionWrapper {
+pub struct AffineFunctionWrapper {
     aff_func: AffFunc,
 }
 
@@ -439,7 +461,7 @@ impl AffineFunctionWrapper {
     }
 
     #[staticmethod]
-    pub fn rotation<'py>(orthogonal_mat: PyArrayLike2<'py, f64>) -> AffineFunctionWrapper {
+    pub fn rotation(orthogonal_mat: PyArrayLike2<'_, f64>) -> AffineFunctionWrapper {
         AffineFunctionWrapper::new(AffFunc::rotation(orthogonal_mat.into_owned_array()))
     }
 
@@ -449,28 +471,28 @@ impl AffineFunctionWrapper {
     }
 
     #[staticmethod]
-    pub fn scaling<'py>(scalars: PyArrayLike1<'py, f64>) -> AffineFunctionWrapper {
+    pub fn scaling(scalars: PyArrayLike1<'_, f64>) -> AffineFunctionWrapper {
         AffineFunctionWrapper::new(AffFunc::scaling(&scalars.into_owned_array()))
     }
 
     #[staticmethod]
-    pub fn slice<'py>(reference_point: PyArrayLike1<'py, f64>) -> AffineFunctionWrapper {
+    pub fn slice(reference_point: PyArrayLike1<'_, f64>) -> AffineFunctionWrapper {
         AffineFunctionWrapper::new(AffFunc::slice(&reference_point.into_owned_array()))
     }
 
     #[staticmethod]
-    pub fn translation<'py>(dim: usize, offset: PyArrayLike1<'py, f64>) -> AffineFunctionWrapper {
+    pub fn translation(dim: usize, offset: PyArrayLike1<'_, f64>) -> AffineFunctionWrapper {
         AffineFunctionWrapper::new(AffFunc::translation(dim, offset.into_owned_array()))
     }
 
     #[getter]
     fn mat<'py>(&self, _py: Python<'py>) -> PyResult<&'py PyArray2<f64>> {
-        Ok(PyArray::from_array(_py, &self.aff_func.get_matrix()))
+        Ok(PyArray::from_array(_py, &self.aff_func.matrix_view()))
     }
 
     #[getter]
     fn bias<'py>(&self, _py: Python<'py>) -> PyResult<&'py PyArray1<f64>> {
-        Ok(PyArray::from_array(_py, &self.aff_func.get_bias()))
+        Ok(PyArray::from_array(_py, &self.aff_func.bias_view()))
     }
 
     fn indim(&self) -> PyResult<usize> {
@@ -505,20 +527,28 @@ impl AffineFunctionWrapper {
         AffineFunctionWrapper::new(self.aff_func.stack(&other.aff_func))
     }
 
-    pub fn add(&self, other: &AffineFunctionWrapper) -> AffineFunctionWrapper {
-        AffineFunctionWrapper::new(self.clone().aff_func.add(&other.aff_func))
-    }
-
-    pub fn negate(&self) -> AffineFunctionWrapper {
-        AffineFunctionWrapper::new(self.clone().aff_func.negate())
-    }
-
     pub fn __add__(&self, other: &AffineFunctionWrapper) -> AffineFunctionWrapper {
-        self.add(other)
+        AffineFunctionWrapper::new(&self.aff_func + &other.aff_func)
+    }
+
+    pub fn __sub__(&self, other: &AffineFunctionWrapper) -> AffineFunctionWrapper {
+        AffineFunctionWrapper::new(&self.aff_func - &other.aff_func)
+    }
+
+    pub fn __mul__(&self, other: &AffineFunctionWrapper) -> AffineFunctionWrapper {
+        AffineFunctionWrapper::new(&self.aff_func * &other.aff_func)
+    }
+
+    pub fn __div__(&self, other: &AffineFunctionWrapper) -> AffineFunctionWrapper {
+        AffineFunctionWrapper::new(&self.aff_func / &other.aff_func)
+    }
+
+    pub fn __mod__(&self, other: &AffineFunctionWrapper) -> AffineFunctionWrapper {
+        AffineFunctionWrapper::new(&self.aff_func % &other.aff_func)
     }
 
     pub fn __neg__(&self) -> AffineFunctionWrapper {
-        self.negate()
+        AffineFunctionWrapper::new(-self.aff_func.clone())
     }
 
     fn __getitem__(&self, idx: SliceOrInt) -> PyResult<AffineFunctionWrapper> {
@@ -533,6 +563,119 @@ impl AffineFunctionWrapper {
     }
 }
 
+#[pyclass]
+#[derive(Clone)]
+#[pyo3(name = "LayerBuilder")]
+pub struct LayerBuilderW {
+    pub layers: Vec<Layer>,
+    pub input_dim: usize,
+    pub current_dim: usize
+}
+
+#[pymethods]
+impl LayerBuilderW {
+    #[new]
+    pub fn __init__(input_dim: usize) -> LayerBuilderW {
+        LayerBuilderW { layers: Vec::new(), input_dim, current_dim: input_dim }
+    }
+
+    pub fn linear(&mut self, aff: AffineFunctionWrapper) {
+        assert_eq!(self.current_dim, aff.aff_func.indim());
+        self.current_dim = aff.aff_func.outdim();
+        self.layers.push(Layer::Linear(aff.aff_func));
+    }
+
+    pub fn partial_relu(&mut self, idx: usize) {
+        assert!(idx < self.current_dim);
+        self.layers.push(Layer::ReLU(idx))
+    }
+
+    pub fn relu(&mut self) {
+        for idx in 0..self.current_dim {
+            self.partial_relu(idx)
+        }
+    }
+
+    pub fn partial_leaky_relu(&mut self, idx: usize, alpha: f64) {
+        assert!(idx < self.current_dim);
+        self.layers.push(Layer::LeakyReLU(idx, alpha))
+    }
+
+    pub fn leaky_relu(&mut self, alpha: f64) {
+        for idx in 0..self.current_dim {
+            self.partial_leaky_relu(idx, alpha)
+        }
+    }
+
+    pub fn partial_hard_tanh(&mut self, idx: usize) {
+        assert!(idx < self.current_dim);
+        self.layers.push(Layer::HardTanh(idx))
+    }
+
+    pub fn hard_tanh(&mut self) {
+        for idx in 0..self.current_dim {
+            self.partial_hard_tanh(idx)
+        }
+    }
+
+    pub fn partial_hard_sigmoid(&mut self, idx: usize) {
+        assert!(idx < self.current_dim);
+        self.layers.push(Layer::HardSigmoid(idx))
+    }
+
+    pub fn hard_sigmoid(&mut self) {
+        for idx in 0..self.current_dim {
+            self.partial_hard_sigmoid(idx)
+        }
+    }
+
+    pub fn argmax(&mut self) {
+        self.current_dim = 1;
+        self.layers.push(Layer::Argmax)
+    }
+
+    pub fn __str__(&self) -> String {
+        use std::fmt::Write;
+
+        let mut str = String::new();
+        for layer in &self.layers {
+            match layer {
+                Layer::Linear(aff) => {
+                    writeln!(&mut str, "- linear {}x{}", aff.indim(), aff.outdim());
+                }
+                Layer::ReLU(idx) => {
+                    writeln!(&mut str, "- ReLU idx={}", idx);
+                }
+                Layer::LeakyReLU(idx, alpha) => {
+                    writeln!(&mut str, "- LeakyReLU alpha={} idx={}", alpha, idx);
+                }
+                Layer::HardTanh(idx) => {
+                    writeln!(&mut str, "- HardTanh idx={}", idx);
+                }
+                Layer::HardSigmoid(idx) => {
+                    writeln!(&mut str, "- HardSigmoid idx={}", idx);
+                }
+                Layer::Argmax => {
+                    writeln!(&mut str, "- Argmax");
+                }
+                Layer::ClassChar(class) => {
+                    writeln!(&mut str, "- ClassChar class={}", class);
+                }
+            }
+        }
+        str
+    }
+}
+
+impl IntoIterator for LayerBuilderW {
+    type Item = Layer;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.layers.into_iter()
+    }
+}
+
 #[allow(non_snake_case)]
 #[pyfunction]
 fn ReLU(dim: usize) -> PyResult<AffTreeWrapper> {
@@ -543,6 +686,25 @@ fn ReLU(dim: usize) -> PyResult<AffTreeWrapper> {
 #[pyfunction]
 fn partial_ReLU(dim: usize, row: usize) -> PyResult<AffTreeWrapper> {
     Ok(AffTreeWrapper { aff_tree: schema::partial_ReLU(dim, row) })
+}
+
+#[allow(non_snake_case)]
+#[pyfunction]
+fn partial_leaky_ReLU(dim: usize, row: usize, alpha: f64) -> PyResult<AffTreeWrapper> {
+    Ok(AffTreeWrapper { aff_tree: schema::partial_leaky_ReLU(dim, row, alpha) })
+}
+
+
+#[allow(non_snake_case)]
+#[pyfunction]
+fn partial_hard_tanh(dim: usize, row: usize, min_val: f64, max_val: f64) -> PyResult<AffTreeWrapper> {
+    Ok(AffTreeWrapper { aff_tree: schema::partial_hard_tanh(dim, row, min_val, max_val) })
+}
+
+#[allow(non_snake_case)]
+#[pyfunction]
+fn partial_hard_sigmoid(dim: usize, row: usize) -> PyResult<AffTreeWrapper> {
+    Ok(AffTreeWrapper { aff_tree: schema::partial_hard_sigmoid(dim, row) })
 }
 
 #[pyfunction]
@@ -572,33 +734,19 @@ fn rust_schema(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
+
 #[pyfunction]
-fn from_sequential(layers: Vec<String>, aff_funcs: Vec<AffineFunctionWrapper>, precondition: Option<AffTreeWrapper>, csv: Option<&str>) -> PyResult<AffTreeWrapper> {
-    let mut dim = 0;
-    let mut iter = aff_funcs.iter();
-    let mut layers_rust = Vec::with_capacity(layers.len());
-    for layer_name in layers.iter() {
-        match layer_name.trim().to_ascii_lowercase().as_str() {
-            "relu" => {
-                for row in 0..dim {
-                    layers_rust.push(Layer::ReLU(row))
-                }
-            },
-            "linear" | "lin" => {
-                let func = iter.next().unwrap().aff_func.clone();
-                dim = func.outdim();
-                layers_rust.push(Layer::Linear(func))
-            },
-            "argmax" => layers_rust.push(Layer::Argmax),
-            _ => return Err(PyValueError::new_err(format!("Unknown layer descriptor \"{}\"", layer_name)))
-        }
-    }
-    let dim = aff_funcs.first().unwrap().aff_func.indim();
+fn from_layers(layers: LayerBuilderW, precondition: Option<AffTreeWrapper>, csv: Option<&str>) -> PyResult<AffTreeWrapper> {
+    let dim = if let Some(ref pre) = precondition {
+        pre.aff_tree.in_dim()
+    } else {
+        layers.input_dim
+    };
 
     let aff_tree = if let Some(path) = csv {
-        afftree_from_layers_csv(dim, &layers_rust, path, precondition.map(|x| x.aff_tree))
+        afftree_from_layers_csv(dim, layers, path, precondition.map(|x| x.aff_tree))
     } else {
-        afftree_from_layers_verbose(dim, &layers_rust, precondition.map(|x| x.aff_tree))
+        afftree_from_layers_verbose(dim, layers, precondition.map(|x| x.aff_tree))
     };
         
     Ok(AffTreeWrapper { aff_tree })
@@ -623,27 +771,21 @@ fn read_npz(dim: usize, filename: String, precondition: Option<AffTreeWrapper>, 
 #[pymodule]
 fn rust_builder(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     let child_module = PyModule::new(py, "builder")?;
-    child_module.add_function(wrap_pyfunction!(from_sequential, m)?)?;
+    child_module.add_function(wrap_pyfunction!(from_layers, m)?)?;
     child_module.add_function(wrap_pyfunction!(read_npz, m)?)?;
     m.add_submodule(child_module);
     Ok(())
-}
-
-#[pyfunction]
-fn dot_str(tree: &AffTreeWrapper) -> String {
-    let mut str = String::new();
-    dot::dot_str(&mut str, &tree.aff_tree).unwrap();
-    str
 }
 
 #[pymodule]
 fn affinitree(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     rust_schema(py, m);
     rust_builder(py, m);
-    m.add_function(wrap_pyfunction!(dot_str, m)?)?;
     m.add_class::<AffTreeWrapper>()?;
     m.add_class::<AffineNodeWrapper>()?;
     m.add_class::<PolytopeWrapper>()?;
     m.add_class::<AffineFunctionWrapper>()?;
+    m.add_class::<LayerBuilderW>()?;
     Ok(())
+
 }

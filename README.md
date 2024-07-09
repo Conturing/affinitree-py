@@ -2,27 +2,25 @@
 
 [![PyPi](https://img.shields.io/pypi/v/affinitree)](https://pypi.org/project/affinitree/)
 
-Affinitree is an open-source library to generate faithful surrogate models (decision trees) from pre-trained piece-wise linear neural networks.
+`Affinitree` is an open-source library designed to generate faithful surrogate models (decision trees) from pre-trained piece-wise linear neural networks.
 The core part of the library is implemented in Rust for best performance.
 
 The opaque nature of neural networks stands in the way of their widespread usage, especially in
 safety critical domains.
-To tackle such tasks, it is important to access the semantics of neural networks in a structured way.
-One promising field of XAI research is concerned with finding alternative models for a given neural network
+To address this issue, it is important to access the semantics of neural networks in a structured manner.
+One promising field of Explainable AI (XAI) research is concerned with finding alternative models for a given neural network
 that are more transparent, interpretable, or easier to analyze. 
 This approach is called *model distillation* and the resulting model is called *surrogate model*, *proxy model* or *white-box model*.
 
-`Affinitree` is a library that allows to distil a rectifier neural network into a specialized decision tree.
-In XAI literature, it is generally accepted that decision trees are one of a few model classes that are
-comprehensible by humans.
-This makes decision trees a prime candidate for surrogate models.
-Further, decision trees lend themselves well for the representation of neural networks with ReLU activation.
-Due to the ReLU activation function the networks are piece-wise linear, a fact that `affinitree` uses to distill the network into a decision tree.
+`Affinitree` enables the distillation of piece-wise linear neural networks into a specialized decision trees.
+In Explainable AI (XAI) literature, decision trees are widely regarded as one of the few model classes comprehensible by humans, making them prime candidates for surrogate models.
+Additionally, many neural network architectures, such as those using ReLU, LeakyReLU, residual connections, pooling, and convolutions, exhibit piece-wise linear behavior.
+These qualities make decision trees well-suited for representing such networks.
 
 Commonly, surrogate models are only an approximation of the true nature of the neural network.
-In contrast, `affinitree` provides mathematical sound and correct surrogate models.
+In contrast, `affinitree` provides mathematically sound and correct surrogate models.
 This is achieved by an holistic symbolic execution of the network.
-The resulting decision structure is human understandable but size must be controlled.
+The resulting decision structure is human-understandable, but size must be controlled.
 
 # Installation
 
@@ -32,7 +30,7 @@ The resulting decision structure is human understandable but size must be contro
 pip install affinitree
 ```
 
-Wheels are currently available for linux (x86_64).
+Wheels are currently available for Linux (x86_64).
 For other architectures, see [Build Wheels from Rust](#build-wheels-from-rust).
 
 # First Steps
@@ -41,7 +39,7 @@ For other architectures, see [Build Wheels from Rust](#build-wheels-from-rust).
 
 ```python 
 from torch import nn
-from affinitree.pytorch import from_pytorch
+from affinitree import extract_pytorch_architecture, builder
 
 model = nn.Sequential(nn.Linear(7, 5),
                       nn.ReLU(),
@@ -50,18 +48,21 @@ model = nn.Sequential(nn.Linear(7, 5),
                       nn.Linear(5, 4)
                      )
 
-dd = from_pytorch(model)
+# Train your model here ...
+
+arch = extract_pytorch_architecture(7, model)
+dd = builder.from_layers(arch)
 ```
 
-It may be noted that `affinitree` is independent of any concrete neural network library.
-The function `from_pytorch` is just a thin wrapper that extracts numpy arrays from pytorch models for convenience.
-Any model expressed as a sequence of numpy matrices can be read (see also the provided [examples](examples)).
+It may be noted that `affinitree` is independent of any specific neural network library.
+The function `extract_pytorch_architecture` is a helper that extracts `numpy` arrays from pytorch models for convenience.
+Any model expressed as a sequence of `numpy` matrices can be read (see also the provided [examples](examples)).
 
-After distilling the model, one can use the resulting `AffTree` for plotting the decision tree
+After distilling the model, one can use the resulting `AffTree` to plot the decision tree
 in [graphviz's](https://graphviz.org/) DOT language:
 
 ```python
-dot_str(dd)
+dd.to_dot()
 ```
 
 A simple AffTree may look like this (representing the xor function):
@@ -73,13 +74,13 @@ A simple AffTree may look like this (representing the xor function):
 `Affinitree` provides a method to plot the decision boundaries of an ``AffTree`` using `matplotlib`
 
 ```python
-from affinitree.plot import plot_preimage_partition, LedgerDiscrete
+from affinitree import plot_preimage_partition, LedgerDiscrete
 
-# derive 10 colors from the tab10 color map and position ledgend at the top 
+# Derive 10 colors from the tab10 color map and position legend at the top 
 ledger = LedgerDiscrete(cmap='tab10', num=10, position='top')
-# map the terminals of dd to one of the 10 colors based on their class
+# Map the terminals of dd to one of the 10 colors based on their class
 ledger.fit(dd)
-# plot for each terminal of dd the polytope that is implied by the path from the root to the respective terminal
+# Plot for each terminal of dd the polytope that is implied by the path from the root to the respective terminal
 plot_preimage_partition(dd, ledger, intervals=[(-20., 15.), (-12., 12.)])
 ```
 The ``ledger`` is used to control the coloring and legend of the plot.
@@ -113,7 +114,7 @@ Argmax (indim=4):
 </p>
 
 Schemas are a collection of typical operations that are used in the context of neural networks.
-In code, on can apply these as follows:
+In code, one can apply these as follows:
 
 ```python
 from affinitree import AffTree
@@ -130,6 +131,9 @@ The following operations are already provided:
 ```python
 schema.ReLU(dim=n)
 schema.partial_ReLU(dim=n, row=m)
+schema.partial_leaky_ReLU(dim=n, row=m, alpha=0.1)
+schema.partial_hard_tanh(dim=n, row=m)
+schema.partial_hard_sigmoid(dim=n, row=m)
 schema.argmax(dim=n)
 schema.inf_norm(minimum=a, maximum=b)
 schema.class_characterization(dim=n, clazz=c)
@@ -141,7 +145,7 @@ The interface is easily adaptable to additional needs, one just needs to define 
 
 For best performance, most of affinitree is written in the system language Rust.
 The corresponding sources can be found at [affinitree (rust)](https://github.com/Conturing/affinitree).
-To make the interaction with compiled languages easier, python allows to provide pre-compiled binaries for each target architecture, called *wheels*.
+To make the interaction with compiled languages easier, Python allows to provide pre-compiled binaries for each target architecture, called *wheels*.
 
 After installing Rust and maturin, wheels for your current architecture can be build using:
 ```sh
@@ -165,6 +169,6 @@ Binary applications built from this repository (including wheels) contain depend
 
 ## Contributing
 
-Please feel free to create issues, fork the project or submit pull requests.
+Please feel free to create issues, fork the project, or submit pull requests.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be licensed as above, without any additional terms or conditions.

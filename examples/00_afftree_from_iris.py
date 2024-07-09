@@ -1,6 +1,5 @@
 from pathlib import Path
-from affinitree import AffTree, AffFunc, dot_str
-from affinitree.pytorch import from_pytorch
+from affinitree import AffTree, AffFunc, extract_pytorch_architecture, builder
 
 import numpy as np
 import torch
@@ -52,7 +51,8 @@ for epoch in range(20):
         optimizer.zero_grad()
 
 # generate afftree from pre-trained pytorch model
-dd = from_pytorch(model)
+arch = extract_pytorch_architecture(4, model)
+dd = builder.from_layers(arch)
 
 # print dot string to console
-print(dot_str(dd))
+print(dd.to_dot())

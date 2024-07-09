@@ -17,4 +17,4 @@ dd.compose(schema.class_characterization(3, 0))
 dd.infeasible_elimination()
 
 # print dot string to console
-print(dot_str(dd))
+print(dd.to_dot())

@@ -13,31 +13,27 @@
 #   limitations under the License.
 
 from pathlib import Path
-from affinitree import AffTree, AffFunc
-from affinitree import builder
+from affinitree import AffFunc, LayerBuilder
 
 import numpy as np
 from torch import nn
 
-def from_pytorch(model: nn.Sequential) -> AffTree:
-    
-    funcs = []
-    descr = []
+
+def extract_pytorch_architecture(dim: int, model: nn.Sequential) -> LayerBuilder:
+    arch = LayerBuilder(dim)
     
     layers = model.named_modules(remove_duplicate=False)
     next(layers)
+
     for _, layer in layers:
         if isinstance(layer, nn.Linear):
-            descr.append("linear")
             W =  layer.weight.detach().numpy().astype(np.float64)
             b = layer.bias.detach().numpy().astype(np.float64)
-            funcs.append(AffFunc.from_mats(W, b))
+            arch.linear(AffFunc.from_mats(W, b))
         elif isinstance(layer, nn.ReLU):
-            descr.append("relu")
-        else:
-            raise ValueError("Unsupported layer: {}", layer)
+            arch.relu()
     
-    return builder.from_sequential(descr, funcs)
+    return arch
 
 
 def export_npz(model: nn.Module, filename):

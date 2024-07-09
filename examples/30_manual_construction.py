@@ -1,5 +1,5 @@
 import numpy as np
-from affinitree import AffTree, AffFunc, dot_str
+from affinitree import AffTree, AffFunc
 from affinitree import schema
 
 w1 = np.array([[1, 1], [2, 2]])
@@ -17,4 +17,4 @@ dd.compose(schema.ReLU(2))
 dd.apply_func(l2)
 
 # print dot string to console
-print(dot_str(dd))
+print(dd.to_dot())

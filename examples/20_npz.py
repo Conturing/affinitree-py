@@ -1,5 +1,5 @@
 from pathlib import Path
-from affinitree import AffTree, AffFunc, dot_str
+from affinitree import AffTree, AffFunc
 from affinitree import builder
 from affinitree.pytorch import export_npz
 
@@ -58,4 +58,4 @@ export_npz(model, 'examples/nn-iris-4-4-3.npz')
 # read in the parameters and architecture and construct an AffTree 
 dd = builder.read_npz(4, 'examples/nn-iris-4-4-3.npz')
 
-print(dot_str(dd))
+print(dd.to_dot())

@@ -32,12 +32,13 @@ from affinitree import *
 
 class LedgerDiscrete:
     
-    def __init__(self, cmap='tab10', names=None, absolute_mapping=True, num=None, title=None, position='right'):
+    def __init__(self, cmap='tab10', names=None, color_idx=None, absolute_mapping=True, num=None, title=None, position='right'):
         self.cmap = cmap
         if names is None:
             self.names = dict()
         else:
             self.names = names
+        self.color_idx = color_idx
         self.absolute_mapping = absolute_mapping
         self.num = num
         self.title = title
@@ -47,33 +48,37 @@ class LedgerDiscrete:
         values = set()
 
         for terminal in dd.terminals():
-            values.add(terminal.val.bias.sum())
+            values.add(int(terminal.val.bias.sum().item()))
         
         self.vmax = int(max(values))
+        self.vmin = int(min(values))
         
         if self.num is not None:
-            self.color_palette = sns.color_palette(self.cmap, self.num)
+            pass
+        elif self.color_idx is not None:
+            self.num = max(self.color_idx.items(), key=lambda x: x[0])
+        elif self.absolute_mapping:
+            self.num = self.vmax + 1
         else:
-            if self.absolute_mapping:
-                self.color_palette = sns.color_palette(self.cmap, self.vmax + 1)
-                self.num = self.vmax + 1
-            else:
-                self.color_palette = sns.color_palette(self.cmap, len(values))
-                self.num = len(values)
+            self.num = len(values)
         
+        self.color_palette = sns.color_palette(self.cmap, self.num)
         self.values = values
     
     def map_color(self, node: AffNode) -> Tuple:
-        idx = node.val.bias.sum()
+        idx = node.val.bias.sum().item()
         if self.absolute_mapping:
             return self.color_palette[int(idx)]
     
     def create_legend(self, ax):
         patches = []
-        for idx in range(self.num):
-            if idx not in self.values:
-                continue
-            if self.absolute_mapping:
+        for idx in self.values:
+            if self.color_idx is not None:
+                patches.append(mpatches.Patch(
+                    color=self.color_palette[self.color_idx[idx]], 
+                    label=self.names.get(idx, f'{idx}')
+                ))
+            elif self.absolute_mapping:
                 patches.append(mpatches.Patch(
                     color=self.color_palette[idx], 
                     label=self.names.get(idx, f'{idx}')
@@ -113,26 +118,29 @@ class LedgerContinuous:
         pass
 
 
-def calculate_extreme_points(poly: Polytope) -> npt.NDArray:
-    """ Calculate the extreme points (vertices) of the given (2D) Polytope
-     and return them in order. """
+def compute_polytope_vertices(poly: Polytope) -> npt.NDArray:
+    """ Calculates the extreme points (vertices) of the given 2D polytope
+     and returns them in counter-clockwise order. """
 
     cheby_poly, cost = poly.chebyshev_center()
         
     try:
         res = cheby_poly.solve(cost)
     except ValueError as e:
-        raise ValueError(f'Unbounded or infeasible polytope has no extreme points.', e)
+        raise ValueError('cannot determine inner point of given polytope:', e)
     
     center = res[:-1]
     radius = res[-1]
+
+    if np.isinf(center).any():
+        raise ValueError('cannot determine inner point of given polytope')
 
     A, b = poly.to_Axbleqz()
 
     try:
         hs = HalfspaceIntersection(np.hstack([A, b.reshape(-1, 1)]), center)
     except QhullError as e:
-        raise ValueError('Qhull could not solve halfspace intersection.', e)
+        raise ValueError('cannot determine vertices of polytope, Qhull returned with error:', e)
 
     x, y = hs.intersections[:, 0], hs.intersections[:, 1]
     order = np.argsort(np.arctan2(y - y.mean(), x - x.mean()))
@@ -145,7 +153,7 @@ def plot_preimage_partition(dd: AffTree, ledger,
                             edge_color=None, linewidth=None,
                             projection: Callable[[Polytope], Polytope] = None,
                             ax: plt.Axes = None):
-    """ Plot the preimage partition of the specified AffTree. """
+    """ Plots the preimage partition of the specified AffTree. """
 
     if edge_color is None:
         edge_color = (0.15, 0.15, 0.33)
@@ -177,9 +185,9 @@ def plot_preimage_partition(dd: AffTree, ledger,
             poly = projection(poly)
         
         try:
-            polygon = calculate_extreme_points(poly)
+            polygon = compute_polytope_vertices(poly)
         except ValueError as e:
-            print(f'Warning: got an error when determing extreme points of node {node.id}')
+            print(f'Warning: got an error when determing extreme points of node {node.id}', e)
             continue
         
         patches += [Polygon(polygon)]
@@ -237,9 +245,9 @@ def plot_image(dd: AffTree, ledger, intervals: Sequence[Tuple[float, float]], pr
             poly = projection_in(poly)
         
         try:
-            polygon = calculate_extreme_points(poly)
+            polygon = compute_polytope_vertices(poly)
         except ValueError as e:
-            print(f'Warning: got an error when determing extreme points of node {node.id}')
+            print(f'Warning: got an error when determing extreme points of node {node.id}', e)
             continue
         
         def z_value(p):
