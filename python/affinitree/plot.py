@@ -1,4 +1,4 @@
-#   Copyright 2024 affinitree developers
+#   Copyright 2025 affinitree developers
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-from typing import Callable, Iterable, Sequence, Tuple
+from typing import Callable, Iterable, Sequence, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -24,6 +24,7 @@ from matplotlib import pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Polygon
+from matplotlib.typing import ColorType
 from mpl_toolkits import mplot3d
 import seaborn as sns
 
@@ -32,7 +33,7 @@ from affinitree import *
 
 class LedgerDiscrete:
     
-    def __init__(self, cmap='tab10', names=None, color_idx=None, absolute_mapping=True, num=None, title=None, position='right'):
+    def __init__(self, cmap : Union[str, Sequence[ColorType], None] = 'tab10', names=None, color_idx=None, absolute_mapping=True, num=None, title=None, position='right'):
         self.cmap = cmap
         if names is None:
             self.names = dict()
@@ -67,10 +68,12 @@ class LedgerDiscrete:
     
     def map_color(self, node: AffNode) -> Tuple:
         idx = node.val.bias.sum().item()
-        if self.absolute_mapping:
+        if self.color_idx is not None:
+            return self.color_palette[self.color_idx[idx]]
+        elif self.absolute_mapping:
             return self.color_palette[int(idx)]
     
-    def create_legend(self, ax):
+    def create_legend(self, fig, ax):
         patches = []
         for idx in self.values:
             if self.color_idx is not None:
@@ -106,7 +109,10 @@ class LedgerContinuous:
         self.vmax = max(values)
         self.norm = matplotlib.colors.Normalize(vmin=self.vmin, vmax=self.vmax)
         
-        self.color_palette = sns.color_palette(self.cmap, as_cmap=True)
+        if isinstance(self.cmap, matplotlib.colors.Colormap):
+            self.color_palette = self.cmap
+        else:
+            self.color_palette = sns.color_palette(self.cmap, as_cmap=True)
         self.values = values
     
     def map_color(self, node: AffNode) -> Tuple:
@@ -114,8 +120,9 @@ class LedgerContinuous:
         color = self.color_palette(self.norm(val))
         return (color[0], color[1], color[2])
     
-    def create_legend(self, ax):
-        pass
+    def create_legend(self, fig, ax):
+        fig.colorbar(matplotlib.cm.ScalarMappable(norm=self.norm, cmap=self.cmap),
+             ax=ax, orientation='vertical', label=self.title)
 
 
 def compute_polytope_vertices(poly: Polytope) -> npt.NDArray:
@@ -152,6 +159,7 @@ def plot_preimage_partition(dd: AffTree, ledger,
                             intervals: Sequence[Tuple[float, float]], precondition=None,
                             edge_color=None, linewidth=None,
                             projection: Callable[[Polytope], Polytope] = None,
+                            fig: plt.Figure = None,
                             ax: plt.Axes = None):
     """ Plots the preimage partition of the specified AffTree. """
 
@@ -170,7 +178,7 @@ def plot_preimage_partition(dd: AffTree, ledger,
         ax.set_xlim(*intervals[0])
         ax.set_ylim(*intervals[1])
 
-    ledger.create_legend(ax)
+    ledger.create_legend(fig, ax)
 
     patches = []
     patch_colors = []
@@ -209,6 +217,7 @@ def plot_image(dd: AffTree, ledger, intervals: Sequence[Tuple[float, float]], pr
                colors: Iterable = None, edge_color=None, linewidth=None,
                projection_in: Callable[[Polytope], Polytope] = None,
                projection_out: Callable[[npt.NDArray], npt.NDArray] = None,
+               fig: plt.Figure = None,
                ax: plt.Axes = None):
           
     if edge_color is None:
@@ -227,7 +236,7 @@ def plot_image(dd: AffTree, ledger, intervals: Sequence[Tuple[float, float]], pr
         ax.set_ylim(*intervals[1])
         ax.set_zlim3d(*intervals[2])
 
-    ledger.create_legend(ax)
+    ledger.create_legend(fig, ax)
 
     patches = []
     patch_colors = []

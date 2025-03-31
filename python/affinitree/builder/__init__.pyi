@@ -1,4 +1,4 @@
-#   Copyright 2024 affinitree developers
+#   Copyright 2025 affinitree developers
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -13,16 +13,16 @@
 #   limitations under the License.
 
 from typing import List, Optional
-from affinitree import AffTree, AffFunc, LayerBuilder
+from affinitree import AffTree, AffFunc, Architecture
 
 
-def from_layers(layers: LayerBuilder, precondition: Optional['AffTree'], csv: Optional[str]) -> 'AffTree':
+def from_layers(layers: Architecture, precondition: Optional['AffTree'], csv: Optional[str]) -> 'AffTree':
     """
-    Distills a neural network represented by a LayerBuilder object into an AffTree.
+    Distills a neural network represented by an Architecture object into an AffTree.
 
     Parameters
     ----------
-    layers : LayerBuilder
+    layers : Architecture
         An object containing the layers of the neural network.
     precondition : AffTree, optional (default None)
         An optional precondition to be applied during distillation.

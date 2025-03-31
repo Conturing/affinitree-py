@@ -1,8 +1,9 @@
 [package]
 name = "affinitree-py"
-version = "0.22.0"
+version = "0.23.0"
 edition = "2021"
 license = "Apache-2.0"
+rust-version = "1.79.0"
 
 [lib]
 path = "src/lib.rs"
@@ -10,10 +11,11 @@ name = "affinitree"
 crate-type = ["cdylib"]
 
 [dependencies]
-affinitree_rust = { package = "affinitree", version = "0.22.0" }
-numpy = "0.21.0"
-pyo3 = { version = "0.21.2", features = ["extension-module"] }
-pyo3-arraylike = "0.1.0"
+affinitree_rust = { package = "affinitree", version = "0.23.0"}
+numpy = "0.21"
+pyo3 = { version = "0.21", features = ["extension-module", "generate-import-lib"] }
+pyo3-arraylike = "0.1.1"
+thiserror = "1.0.65"
 
 [profile.bench]
 lto = true

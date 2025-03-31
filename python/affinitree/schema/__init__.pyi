@@ -1,4 +1,4 @@
-#   Copyright 2024 affinitree developers
+#   Copyright 2025 affinitree developers
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -14,22 +14,6 @@
 
 from typing import Optional
 from .. import AffTree
-
-def ReLU(dim: int) -> AffTree:
-    """
-    Creates an AffTree instance representing the ReLU function.
-
-    Parameters
-    ----------
-    dim : int
-        The dimension of the input space.
-
-    Notes
-    -----
-    .. math::
-
-        \text{ReLU}(x) = \max(0, x)
-    """
 
 def partial_ReLU(dim: int, row: int) -> AffTree:
     """

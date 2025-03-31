@@ -1,4 +1,4 @@
-#   Copyright 2024 affinitree developers
+#   Copyright 2025 affinitree developers
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -15,14 +15,6 @@
 import numpy as np
 
 from affinitree import schema
-
-
-def test_relu():
-    relu_dd = schema.ReLU(4)
-
-    assert np.allclose(relu_dd.evaluate(np.array([-1, -100, -2, 1000])), np.array([0, 0, 0, 1000]))
-    assert np.allclose(relu_dd.evaluate(np.array([1, 2, -2, 1])), np.array([1, 2, 0, 1]))
-    assert np.allclose(relu_dd.evaluate(np.array([1, 0, 0, 4])), np.array([1, 0, 0, 4]))
 
 
 def test_partial_relu():

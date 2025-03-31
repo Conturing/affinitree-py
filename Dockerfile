@@ -16,11 +16,11 @@ RUN python3.10 -m venv $HOME/.venv \
     && .venv/bin/pip install \
     --upgrade pip \
     numpy \
-    "maturin==1.5.0" \
+    "maturin==1.5.1" \
     ziglang
 
 # update path with local venv and all supported python interpreters
-ENV PATH $HOME/.venv/bin:/opt/python/cp38-cp38/bin:/opt/python/cp39-cp39/bin:/opt/python/cp310-cp310/bin:/opt/python/cp311-cp311/bin:/opt/python/cp312-cp312/bin:$PATH
+ENV PATH=$HOME/.venv/bin:/opt/python/cp38-cp38/bin:/opt/python/cp39-cp39/bin:/opt/python/cp310-cp310/bin:/opt/python/cp311-cp311/bin:/opt/python/cp312-cp312/bin:$PATH
 
 # build crate cache (see https://github.com/PyO3/maturin/blob/main/Dockerfile)
 ADD Cargo.toml ./Cargo.toml
@@ -37,7 +37,7 @@ COPY python ./python
 COPY src ./src
 COPY pyproject.toml ./
 COPY README.md ./
-COPY LICENSE_APACHE ./
+COPY LICENSE-APACHE ./
 COPY license.html ./
 
 # update timestamp

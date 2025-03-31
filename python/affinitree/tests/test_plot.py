@@ -1,4 +1,4 @@
-#   Copyright 2024 affinitree developers
+#   Copyright 2025 affinitree developers
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -14,8 +14,6 @@
 
 from pathlib import Path
 import numpy as np
-import torch
-from torch import nn
 
 from affinitree import AffTree, AffFunc, Polytope, compute_polytope_vertices
 from affinitree import builder

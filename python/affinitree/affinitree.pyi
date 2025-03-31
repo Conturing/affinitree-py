@@ -1,4 +1,4 @@
-#   Copyright 2024 affinitree developers
+#   Copyright 2025 affinitree developers
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -18,10 +18,10 @@ import numpy.typing as npt
 
 class AffTree:
     """
-    A class used to represent pice-wise linear functions (i.e., piece-wise linear neural networks) in the form of a
+    A class used to represent pice-wise linear functions (i.e., piecewise linear neural networks) in the form of a
     decision tree.
 
-    Each AffTree represents a piece-wise linear function g : R^m -> R^n, where m is called the input dimension and n is called
+    Each AffTree represents a piecewise linear function g : R^m -> R^n, where m is called the input dimension and n is called
     the output dimension.
 
     Nodes in this Tree are of type AffNode.
@@ -30,7 +30,7 @@ class AffTree:
     of a given linear region.
 
     While the primary function of AffTrees is to represent neural networks in a white-box fashion, they can efficiently handle any
-    piece-wise linear function, even those that are not continuous.
+    piecewise linear function, even those that are not continuous.
 
     NOTE:
         Vectors are represented as numpy arrays with one axis
@@ -91,8 +91,8 @@ class AffTree:
     
     root: AffNode
     
-    @classmethod
-    def identity(cls, dim: int) -> 'AffTree':
+    @staticmethod
+    def identity(dim: int) -> 'AffTree':
         """
         Constructs a simple AffTree representing the identity function in dim dimensions.
         Evaluating this tree yields f(x)=x.
@@ -108,8 +108,8 @@ class AffTree:
             An instance of AffTree that represents the identity function of dim `dim`.
         """
         
-    @classmethod
-    def from_aff(cls, func: AffFunc) -> 'AffTree':
+    @staticmethod
+    def from_aff(func: AffFunc) -> 'AffTree':
         """
         Constructs an AffTree from a given affine function represented by `func`.
         
@@ -125,8 +125,8 @@ class AffTree:
             An instance of AffTree that represents the affine function described by `func`.
         """
     
-    @classmethod
-    def from_array(cls, weights: npt.NDArray, bias: npt.NDArray) -> 'AffTree':
+    @staticmethod
+    def from_array(weights: npt.NDArray, bias: npt.NDArray) -> 'AffTree':
         """
         Constructs a simple AffTree representing the function f(x)=weights*x + bias.
         
@@ -142,8 +142,8 @@ class AffTree:
         Ensure that the dimensions of the weights and bias are compatible, i.e., weights.shape[0]=bias.shape[0]
         """
     
-    @classmethod
-    def from_poly(cls, precondition: Polytope, func_true: AffFunc, func_false: Optional[AffFunc]) -> AffTree:
+    @staticmethod
+    def from_poly(precondition: Polytope, func_true: AffFunc, func_false: Optional[AffFunc]) -> AffTree:
          """
         Constructs an AffTree based on a polytope precondition and associated affine functions.
 
@@ -165,10 +165,178 @@ class AffTree:
         Returns
         -------
         AffTree
-            An instance of AffTree that represents the piece-wise affine function defined by
+            An instance of AffTree that represents the piecewise affine function defined by
             the polytope condition and the given affine functions.
         """
         
+    def indim() -> int:
+        """
+        Returns the input dimension of the AffTree.
+        """
+        
+    def size() -> int:
+        """
+        Returns the number of nodes in this tree.
+        
+        Returns
+        -------
+        size : int
+            The number of nodes in the tree.
+        """
+    
+    def is_empty() -> bool:
+        """
+        Returns whether or not the tree is empty.
+
+        Returns
+        -------
+        empty : bool
+            If this tree is empty or not.
+        """
+
+    def num_terminals() -> int:
+        """
+        Returns the number of terminals in this tree.
+        
+        Returns
+        -------
+        size : int
+            The number of terminals in the tree.
+        """
+    
+    def depth() -> int:
+        """
+        Returns the depth of the tree, that is, the number of nodes contained in the longest path from root to a terminal node.
+        
+        Returns
+        -------
+        depth : int
+            The depth of the tree.
+        """
+
+    def reserve(additional: int):
+        """
+        Reserves space for at least `additional` many new nodes.
+        """
+        
+    def nodes() -> List['AffNode']:
+        """
+        Returns a list of all nodes contained in this tree in memory order.
+        
+        Returns
+        -------
+        nodes : list of AffNode
+            A list of all nodes in this tree.
+        """
+        
+    def terminals() -> List['AffNode']:
+        """
+        Returns a list of all terminal nodes contained in this tree in memory order.
+        
+        Returns
+        -------
+        nodes : list of AffNode
+            A list of all terminal nodes in this tree.
+      
+        """
+
+    def decisions() -> List['AffNode']:
+        """
+        Returns a list of all decision nodes contained in this tree in memory order.
+        
+        Returns
+        -------
+        nodes : list of AffNode
+            A list of all decisions nodes in this tree.
+      
+        """
+        
+    def polyhedra() -> List[Tuple[int, 'AffNode', 'Polytope']]:
+        """
+        Traverses the tree in a depth-first manner and returns for each encountered node its depth and the polytope of the path yielding to the node.
+
+        Returns a list of all linear regions in self.
+        Linear regions (https://en.wikipedia.org/wiki/Piecewise_linear_function#Notation) are represented as tuples:
+        (depth, node, poly) where depth is the depth in the tree, node is a node in the tree, and poly is a Polytope characterizes the region that is associated with this node (i.e., all inputs that take the path to the node).
+
+        Returns
+        -------
+        edges : List[Tuple[int, 'AffNode', 'Polytope']]
+            A list of all linear regions in this tree.
+
+        Notes
+        -----
+        If infeasible paths are not eliminated, this method might return empty linear regions. To ensure that each
+        linear region is indeed an actual linear region, call infeasibility elimination or check otherwise that each
+        polyhedron is non-empty.
+        """
+        
+    def dfs() -> List[Tuple[int, 'AffNode', int]]:
+        """
+        Returns a list of all terminal nodes contained in self, associated with an integer that denotes
+        the depth in which nodes were encountered in a depth-first search (https://en.wikipedia.org/wiki/Depth-first_search).
+        
+        Returns
+        -------
+        nodes : List[Tuple[int, AffNode, int]], 
+            A list of all nodes in this tree with their associated depth (first argument) and the number of its siblings that have not yet been vistied (last argument).
+        """
+
+    def edges() -> List[Tuple['AffNode', int, 'AffNode']]:
+        """
+        Returns a list of all edges in self. Edges are not specifically objects but are represented as tuples (source, label, target).
+        
+        Returns
+        -------
+        edges : List[Tuple[AffNode, int, AffNode]]
+            A list of all edges in this tree.
+        """
+    
+    def add_child_node(parent: 'AffNode', label: int, aff: AffFunc) -> 'AffNode':
+        """
+        Adds a new node to this tree with the given content.
+
+        This method creates a new AffNode with content `aff` and adds it to the tree structure.
+        From `parent` a new edge is added with `label` that ends in the new node.
+
+        Parameters
+        ----------
+        parent : AffNode
+            Parent node in this tree.
+        
+        label : int
+            Label of the new edge liking parent with the new node.
+        
+        aff : AffFunc
+            Value associated with the new node. Depending on whether it stays a
+            terminal or changes to a inner node it is interpreted as a function
+            (mat @ x + bias) or predicate (mat @ x + bias >= 0).
+        
+        Returns
+        -------
+        AffNode
+            New node.
+        """
+
+    def update_node(node: 'AffNode', aff: AffFunc) -> AffFunc:
+        """
+        Updates the value associated with `node` to `aff` and returns the
+        previous value.
+
+        Parameters
+        ----------
+        node : AffNode
+            Node in this tree that should be updated.
+        
+        aff : AffFunc
+            New value associated with `node`.
+        
+        Returns
+        -------
+        AffFunc
+            Old value associated with `node`.
+        """
+
     def apply_func(func: 'AffFunc'):
         """
         Applies an affine function to the AffTree.
@@ -248,40 +416,14 @@ class AffTree:
 
         If infeasible elimination is not used, AffTrees can blow up very quickly. Therefore: Use early and often.
         """
-        
-    def size() -> int:
-        """
-        Returns the number of nodes in this tree.
-        
-        Returns
-        -------
-        size : int
-            The number of nodes in the tree.
-        """
-        
-    def depth() -> int:
-        """
-        Returns the depth of the tree, that is, the number of nodes contained in the longest path from root to a terminal node.
-        
-        Returns
-        -------
-        depth : int
-            The depth of the tree.
-        """
-        
-    def num_terminals() -> int:
-        """
-        Returns the number of terminals in this tree.
-        
-        Returns
-        -------
-        size : int
-            The number of terminals in the tree.
-        """
     
-    def indim() -> int:
+    def reduce():
         """
-        Returns the input dimension of the AffTree.
+        Reduces the complexity of the AffTree by merging equivalent terminal nodes.
+
+        This method optimizes the structure of the AffTree by identifying and merging terminals that represent
+        equivalent affine functions.
+        The reduction process aims to minimize the size of the AffTree without changing its functional behavior.
         """
     
     def parent(node: 'AffNode') -> 'AffNode':
@@ -313,77 +455,6 @@ class AffTree:
         Assumptions
         -----------
         Node should not be a terminal node as it has no children.
-        """
-        
-    def nodes() -> List['AffNode']:
-        """
-        Returns a list of all nodes contained in self in memory order.
-        
-        Returns
-        -------
-        nodes : list of AffNode
-            A list of all nodes in this tree.
-        """
-        
-    def terminals() -> List['AffNode']:
-        """
-        Returns a list of all terminal nodes contained in self in memory order.
-        
-        Returns
-        -------
-        nodes : list of AffNode
-            A list of all terminal nodes in this tree.
-      
-        """
-
-    def dfs() -> List[Tuple[int, 'AffNode', int]]:
-        """
-        Returns a list of all terminal nodes contained in self, associated with an integer that denotes
-        the depth in which nodes were encountered in a depth-first search (https://en.wikipedia.org/wiki/Depth-first_search).
-        
-        Returns
-        -------
-        nodes : List[Tuple[int, AffNode, int]], 
-            A list of all nodes in this tree with their associated depth (first argument) and the number of its siblings that have not yet been vistied (last argument).
-        """
-
-    def edges() -> List[Tuple['AffNode', int, 'AffNode']]:
-        """
-        Returns a list of all edges in self. Edges are not specifically objects but are represented as tuples (source, label, target).
-        
-        Returns
-        -------
-        edges : List[Tuple[AffNode, int, AffNode]]
-            A list of all edges in this tree.
-        """
-
-    def polyhedra() -> List[Tuple[int, 'AffNode', 'Polytope']]:
-        """
-        Traverses the tree in a depth-first manner and returns for each encountered node its depth and the polytope of the path yielding to the node.
-
-        Returns a list of all linear regions in self.
-        Linear regions (https://en.wikipedia.org/wiki/Piecewise_linear_function#Notation) are represented as tuples:
-        (depth, node, poly) where depth is the depth in the tree, node is a node in the tree, and poly is a Polytope characterizes the region that is associated with this node (i.e., all inputs that take the path to the node).
-
-        Returns
-        -------
-        edges : List[Tuple[int, 'AffNode', 'Polytope']]
-            A list of all linear regions in this tree.
-
-        Notes
-        -----
-        If infeasible paths are not eliminated, this method might return empty linear regions. To ensure that each
-        linear region is indeed an actual linear region, call infeasibility elimination or check otherwise that each
-        polyhedron is non-empty.
-        """
-    
-    def reduce():
-        """
-        Reduces the complexity of the AffTree by merging equivalent terminal nodes.
-
-        This method optimizes the structure of the AffTree by identifying and merging terminals that represent
-        equivalent affine functions.
-        The reduction process aims to minimize the size of the AffTree without changing its functional behavior.
         """
     
     def remove_axes(mask: npt.ArrayLike):
@@ -464,9 +535,9 @@ class AffNode:
 
     def __hash__() -> int: ...
 
-    def __repr__() -> str: ...
-
     def __str__() -> str: ...
+    
+    def __repr__() -> str: ...
 
 class Polytope:
     """
@@ -571,8 +642,18 @@ class Polytope:
             If the specified row index is out of the bounds.
         """
 
-    def row_iter() -> List['Polytope']: ...
+    def row_iter() -> List['Polytope']:
+        """
+        Returns a list of Polytopes, each representing a single linear constraint.
 
+        This method allows iteration over each constraint row of this Polytope in order.
+        Each returned polytope corresponds to a single constraint row, thus it is a hyperplane.
+
+        Returns
+        -------
+        List[Polytope]
+            A list of Polytopes, each corresponding to a row in the original inequality system.
+        """
     def normalize() -> 'Polytope':
         """
         Normalizes the coefficients and constants of the Polytope to have unit norms.
@@ -599,7 +680,7 @@ class Polytope:
         Parameters
         ----------
         point : npt.NDArray
-            An array representing a point in the space where the Polytope is defined.
+            A 1D array representing a point in the space where the Polytope is defined.
 
         Returns
         -------
@@ -613,13 +694,13 @@ class Polytope:
         Determines if a given point is inside the Polytope.
 
         This method evaluates whether the specified point satisfies all the linear inequalities 
-        defined by the Polytope. If the point meets all conditions (mat * `point` <= bias), 
+        defined by the Polytope. If the point meets all conditions (mat @ `point` <= bias), 
         it is considered to be inside the Polytope.
 
         Parameters
         ----------
         point : npt.NDArray
-            An array representing a point in the space where the Polytope is defined.
+            A 1D array representing a point in the space where the Polytope is defined.
 
         Returns
         -------
@@ -627,15 +708,77 @@ class Polytope:
             True if the point is inside the Polytope, False otherwise.
         """
 
-    def translate(point: npt.NDArray) -> 'Polytope': ...
+    def translate(point: npt.NDArray) -> 'Polytope':
+        """
+        Translates the Polytope by a given point.
 
-    def intersection(other: 'Polytope') -> 'Polytope': ...
+        This method shifts the entire Polytope by the specified vector, effectively moving it
+        in the space without changing its shape or size.
 
-    def rotate(array: npt.NDArray) -> 'Polytope': ...
+        Parameters
+        ----------
+        point : npt.NDArray
+            A 1D array representing the translation vector.
+
+        Returns
+        -------
+        Polytope
+            A new instance of Polytope representing the translated Polytope.
+        """
+
+    def intersection(other: 'Polytope') -> 'Polytope':
+        """
+        Computes the intersection of the current Polytope with another Polytope.
+
+        This method calculates the region that is common to both Polytopes, defined by the conjunction of their
+        linear inequalities.
+        The resulting polytope contains each constraint of both polytopes once,
+        even if the corresponding hyperplane may not be necessary (supporting).
+
+        Parameters
+        ----------
+        other : Polytope
+            Polytope to intersect with.
+
+        Returns
+        -------
+        Polytope
+            A new instance of Polytope representing the intersection of the two Polytopes.
+        """
+
+    def rotate(array: npt.NDArray) -> 'Polytope':
+        """
+        Rotates the Polytope around the origin using the specified (orthogonal) rotation matrix.
+
+        This method applies a transformation to the coordinates of the Polytope defined by a rotation matrix,
+        allowing for geometric manipulation of its orientation in the ambient space.
+
+        Parameters
+        ----------
+        array : npt.NDArray
+            A square, orthogonal matrix representing the rotation.
+
+        Returns
+        -------
+        Polytope
+            A new instance of Polytope representing the rotated version of the original Polytope.
+        """
 
     def slice(reference_vec: npt.NDArray, reduce_dim: Optional[bool]) -> 'Polytope': ...
 
-    def chebyshev_center() -> Tuple['Polytope', npt.NDArray]: ...
+    def chebyshev_center() -> Tuple['Polytope', npt.NDArray]:
+        """
+        Calculates the Chebyshev center of the Polytope.
+
+        This method returns a Polytope and cost function that describes
+        the linear program for finding the center and radius of the largest inscribed ball within this Polytope.
+        The Chebyshev Center can be seen as a central point of the poyltope, although it is not unique. 
+
+        Returns
+        -------
+        Tuple[Polytope, npt.NDArray]
+            A linear program for finding the Chebyshev Center and radius.
+        """
     
     def solve(cost: Optional[npt.NDArray]) -> npt.NDArray:
         """
@@ -647,7 +790,7 @@ class Polytope:
         Parameters
         ----------
         cost : npt.NDArray, optional
-            An array representing the cost coefficients for each dimension of the Polytope.
+            An 1D array representing the cost coefficients for each dimension of the Polytope.
 
         Returns
         -------
@@ -657,14 +800,16 @@ class Polytope:
         Raises
         ------
         ValueError
-            If no optimal point can be found, e.g., because the Poyltope is empty or unbounded. 
+            If no optimal point can be found, e.g., because the Polytope is empty or unbounded. 
         """
+
+    def __in__(point: npt.NDArray) -> bool: ...
 
     def __and__(other: 'Polytope') -> 'Polytope' : ...
 
-    def __repr__() -> str : ...
-
     def __str__() -> str : ...
+    
+    def __repr__() -> str : ...
 
     def to_Axbleqz() -> Tuple[npt.NDArray, npt.NDArray]: ...
 
@@ -701,9 +846,9 @@ class AffFunc:
         Parameters
         ----------
         mat : npt.NDArray
-            A matrix representing the coefficients of the linear part of the affine function.
+            A 2D matrix representing the coefficients of the linear part of the affine function.
         bias : npt.NDArray
-            A vector representing the constants added to the linear transformation.
+            A 1D vector representing the constants added to the linear transformation.
             It should have a dimension matching the number of rows in 'mat'.
 
         Returns
@@ -715,7 +860,7 @@ class AffFunc:
     @staticmethod
     def identity(dim: int) -> 'AffFunc':
         """
-        Constructs an identity affine function of specified dimension.
+        Creates an identity affine function of specified dimension.
 
         This method creates an affine function that acts as the identity function over R^dim, meaning it returns
         the input as the output without any transformation.
@@ -732,42 +877,216 @@ class AffFunc:
         """
     
     @staticmethod
-    def zeros(dim: int) -> 'AffFunc': ...
+    def zeros(dim: int) -> 'AffFunc':
+        """
+        Creates an affine function with a zero matrix and zero bias.
+
+        Parameters
+        ----------
+        dim : int
+            The dimensionality of the matrix and vector.
+
+        Returns
+        -------
+        AffFunc
+            A new affine function representing the constant zero function.
+        """
 
     @staticmethod
-    def constant(dim: int, value: float) -> 'AffFunc': ...
+    def constant(dim: int, value: float) -> 'AffFunc':
+        """
+        Creates an affine function representing a constant function from `dim`
+        dimensions to one which returns `value`.
+
+        Parameters
+        ----------
+        dim : int
+            The dimensionality of input.
+        value : float
+            The constant value to return.
+
+        Returns
+        -------
+        AffFunc
+            A new constant affine function.
+        """
 
     @staticmethod
-    def unit(dim: int, column: int) -> 'AffFunc': ...
+    def unit(dim: int, index: int) -> 'AffFunc':
+        """
+        Creates an affine function from `dim` dimensions to one returning the `index`-th element from the input as is.
+
+        Parameters
+        ----------
+        dim : int
+            The dimensionality of the input.
+        index : int
+            The column index to set as unit.
+
+        Returns
+        -------
+        AffFunc
+            A new unit affine function.
+        """
 
     @staticmethod
-    def zero_idx(dim: int, index: int) -> 'AffFunc': ...
+    def zero_idx(dim: int, index: int) -> 'AffFunc':
+        """
+        Creates an affine function from `dim` dimensions to `dim` dimensions
+        where the element at `index` is set to zero and all others are left
+        unchaged.
+
+        Parameters
+        ----------
+        dim : int
+            The dimensionality of the input and output.
+        index : int
+            The index in the vector to set to zero.
+
+        Returns
+        -------
+        AffFunc
+            A new affine function.
+        """
 
     @staticmethod
-    def rotation(orthogonal_mat: npt.NDArray) -> 'AffFunc': ...
+    def rotation(orthogonal_mat: npt.NDArray) -> 'AffFunc':
+        """
+        Creates a rotation affine function from an orthogonal matrix.
+
+        Parameters
+        ----------
+        orthogonal_mat : np.ndarray
+            2D array representing the orthogonal rotation matrix.
+
+        Returns
+        -------
+        AffFunc
+            A new rotation affine function.
+        """
 
     @staticmethod
-    def uniform_scaling(dim: int, scalar: float) -> 'AffFunc': ...
+    def uniform_scaling(dim: int, scalar: float) -> 'AffFunc':
+        """
+        Creates a uniform scaling affine function.
+
+        Parameters
+        ----------
+        dim : int
+            The dimensionality of the input and output.
+        scalar : float
+            The uniform scaling factor.
+
+        Returns
+        -------
+        AffFunc
+            A new uniform scaling affine function.
+        """
 
     @staticmethod
-    def scaling(scalars: npt.NDArray) -> 'AffFunc': ...
+    def scaling(scalars: npt.NDArray) -> 'AffFunc':
+        """
+        Creates a scaling affine function with different scaling factors.
+
+        Parameters
+        ----------
+        scalars : np.ndarray
+            1D array of scaling factors.
+
+        Returns
+        -------
+        AffFunc
+            A new scaling affine function.
+        """
 
     @staticmethod
-    def slice(reference_point: npt.NDArray) -> 'AffFunc': ...
+    def slice(reference_point: npt.NDArray) -> 'AffFunc':
+        """
+        Creates an affine function implementing slicing with respect to 
+        the `reference_point`.
+        The resulting functions returns constant values for each axes where
+        `reference_point` has an explicit value.
+        For axes where `reference_point` is NaN, the input value is returned as is.
+
+        Parameters
+        ----------
+        reference_point : np.ndarray
+            1D array representing the reference point.
+
+        Returns
+        -------
+        AffFunc
+            A new slicing affine function.
+        """
 
     @staticmethod
-    def translation(dim: int, offset: npt.NDArray) -> 'AffFunc': ...
+    def translation(dim: int, offset: npt.NDArray) -> 'AffFunc':
+        """
+        Creates an affine function which moves its input by `offset`.
+        The result is the same as adding `offset` to the input.
+
+        Parameters
+        ----------
+        dim : int
+            The dimensionality of the input.
+        offset : np.ndarray
+            1D array representing the translation offset.
+
+        Returns
+        -------
+        AffFunc
+            A new translation affine function.
+        """
 
     mat: npt.NDArray
     bias: npt.NDArray
 
-    def indim() -> int: ...
+    def indim() -> int:
+        """
+        Input dimensionality of the affine function.
 
-    def outdim() -> int: ...
+        Returns
+        -------
+        int
+            The input dimension.
+        """
 
-    def row(row: int) -> 'AffFunc': ...
+    def outdim() -> int:
+        """
+        Output dimensionality of the affine function.
 
-    def row_iter() -> 'AffFunc': ...
+        Returns
+        -------
+        int
+            The output dimension.
+        """
+
+    def row(row: int) -> 'AffFunc':
+        """
+        Creates a new affine function with the effect of this function on just
+        the `row`-th output element.
+        Technically, this corresponds to a new function comprised of the `row`-th row of this matrix and bias.
+
+        Parameters
+        ----------
+        row : int
+            Index of the row to extract.
+
+        Returns
+        -------
+        AffFunc
+            A new affine function for the row.
+        """
+
+    def row_iter() -> 'AffFunc':
+        """
+        Iterate over the rows of the affine function.
+
+        Returns
+        -------
+        List[AffFunc]
+            A list of affine functions for each row.
+        """
 
     def apply(input: npt.NDArray) -> npt.NDArray:
         """
@@ -779,15 +1098,30 @@ class AffFunc:
         Parameters
         ----------
         input : npt.NDArray
-            An input vector to be transformed. 
+            A 1D input vector to be transformed. 
 
         Returns
         -------
         npt.NDArray
-            The output vector after applying the affine transformation to the input.
+            The 1D output vector after applying the affine transformation to the input.
         """
 
-    def apply_transpose(input: npt.NDArray) -> npt.NDArray: ...
+    def apply_transpose(input: npt.NDArray) -> npt.NDArray:
+        """
+        Apply the transpose of the affine function to a vector, which is the
+        inverse when the matrix is orthogonal.
+        This corresponds to mat.T @ (input - bias).
+
+        Parameters
+        ----------
+        input : np.ndarray
+            1D array representing the input vector.
+
+        Returns
+        -------
+        np.ndarray
+            The transformed output vector.
+        """
 
     def compose(other: 'AffFunc') -> 'AffFunc':
         """
@@ -805,10 +1139,25 @@ class AffFunc:
         Returns
         -------
         AffFunc
-            A new AffFunc instance representing the composition of this function followed by the other function.
+            A new AffFunc instance representing the sequential composition of this function followed by the other function.
         """
 
-    def stack(other: 'AffFunc') -> 'AffFunc': ...
+    def stack(other: 'AffFunc') -> 'AffFunc':
+        """
+        Stacks two affine functions vertically.
+
+        Parameters
+        ----------
+        other : AffFunc
+            Another affine function to stack at the bottom of this one.
+
+        Returns
+        -------
+        AffFunc
+            A new stacked affine function.
+        """
+    
+    def __call__(input: npt.NDArray) -> npt.NDArray: ...
 
     def __add__(other: 'AffFunc') -> 'AffFunc': ...
     
@@ -821,9 +1170,13 @@ class AffFunc:
     def __mod__(other: 'AffFunc') -> 'AffFunc': ...
 
     def __neg__() -> 'AffFunc': ...
+    
+    def __str__() -> str : ...
+    
+    def __repr__() -> str : ...
 
 
-class LayerBuilder:
+class Architecture:
     """
     A builder for creating a neural network layer-by-layer with specific activation functions and transformations.
 
@@ -839,7 +1192,7 @@ class LayerBuilder:
 
     def __init__(self, input_dim: int) -> None:
         """
-        Initializes the LayerBuilder with the specified input dimension.
+        Initializes the Architecture with the specified input dimension.
 
         Parameters
         ----------
@@ -927,6 +1280,11 @@ class LayerBuilder:
     def argmax(self) -> None:
         """
         Applies an argmax operation, effectively reducing the dimension to 1 by selecting the maximum index.
+        """
+        
+    def extract_range(start: int, end: int) -> Architecture:
+        """
+        Extracts a subarchitecture for an arbitrary range of layers.
         """
 
     def __str__(self) -> str:

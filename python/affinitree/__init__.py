@@ -1,4 +1,4 @@
-#   Copyright 2024 affinitree developers
+#   Copyright 2025 affinitree developers
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ from .plot import LedgerDiscrete, LedgerContinuous, compute_polytope_vertices, p
 from .pytorch import extract_pytorch_architecture, export_npz
 
 __all__ = [
-    'AffTree', 'AffNode', 'AffFunc', 'Polytope', 'LayerBuilder', 'LedgerDiscrete', 'LedgerContinuous', 'compute_polytope_vertices', 'plot_preimage_partition', 'plot_image', 'extract_pytorch_architecture', 'export_npz', 'schema', 'builder'
+    'AffTree', 'AffNode', 'AffFunc', 'Polytope', 'Architecture', 'LedgerDiscrete', 'LedgerContinuous', 'compute_polytope_vertices', 'plot_preimage_partition', 'plot_image', 'extract_pytorch_architecture', 'export_npz', 'schema', 'builder'
 ]
 
-__version__ = '0.22.0'
+__version__ = '0.23.0'
